@@ -96,7 +96,9 @@ class Program : ApplicationContext
     
     public Program()
     {
-        Config = new XmlConfig("Config.xml");
+        string localPath = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
+        
+        Config = new XmlConfig(Path.Combine(localPath, "Config.xml"));
         
         bNotify = Config.Notify;
         
@@ -176,7 +178,8 @@ class Program : ApplicationContext
 
     void ToggleAutoStart(bool enabled)
     {
-        using RegistryKey? key = Registry.CurrentUser.OpenSubKey(RUN_REGISTRY_KEY, true);
+        using var key = RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Registry64)
+            .OpenSubKey(RUN_REGISTRY_KEY, true);
         if (key == null)
             return;
 
