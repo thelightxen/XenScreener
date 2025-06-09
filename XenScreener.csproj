@@ -7,11 +7,11 @@
         <UseWindowsForms>true</UseWindowsForms>
         <ImplicitUsings>enable</ImplicitUsings>
         <Company>XenFFly</Company>
-        <AssemblyVersion>1.0.1.0</AssemblyVersion>
-        <FileVersion>1.0.1.0</FileVersion>
+        <AssemblyVersion>1.0.1.1</AssemblyVersion>
+        <FileVersion>1.0.1.1</FileVersion>
         <Title>XenScreener</Title>
         <Authors>XenFFly</Authors>
-        <Description>Screenshot of monitors depending on the cursor location</Description>
+        <Description>Makes a screenshot of the monitor depending on the cursor location</Description>
         <Copyright>Copyright © XenFFly 2025</Copyright>
         <ApplicationIcon>Resources\favicon.ico</ApplicationIcon>
         <SignAssembly>true</SignAssembly>
@@ -25,7 +25,7 @@
         <RepositoryUrl>https://git.xenffly.com/XenScreener</RepositoryUrl>
         <RepositoryType>Git</RepositoryType>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <Version>1.0.1</Version>
+        <Version>1.0.1.1</Version>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
