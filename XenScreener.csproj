@@ -1,0 +1,51 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net8.0-windows</TargetFramework>
+        <Nullable>enable</Nullable>
+        <UseWindowsForms>true</UseWindowsForms>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Company>XenFFly</Company>
+        <AssemblyVersion>1.0.0.0</AssemblyVersion>
+        <FileVersion>1.0.0.0</FileVersion>
+        <Title>XenScreener</Title>
+        <Authors>XenFFly</Authors>
+        <Description>Screenshot of monitors depending on the cursor location</Description>
+        <Copyright>Copyright © XenFFly 2025</Copyright>
+        <ApplicationIcon>Resources\favicon.ico</ApplicationIcon>
+        <SignAssembly>true</SignAssembly>
+        <PublicSign>true</PublicSign>
+        <PackageIcon>favicon.png</PackageIcon>
+        <AssemblyName>XenScreener</AssemblyName>
+        <RootNamespace>XenScreener</RootNamespace>
+        <PackageId>XenScreener</PackageId>
+        <Product>XenScreener</Product>
+        <AssemblyOriginatorKeyFile>XenScreener.snk</AssemblyOriginatorKeyFile>
+        <RepositoryUrl>https://git.xenffly.com/XenScreener</RepositoryUrl>
+        <RepositoryType>Git</RepositoryType>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    </PropertyGroup>
+
+    <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+      <DebugType>none</DebugType>
+      <PlatformTarget>x64</PlatformTarget>
+    </PropertyGroup>
+
+    <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+      <PlatformTarget>x64</PlatformTarget>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <EmbeddedResource Include="Resources/favicon.ico" />
+        <EmbeddedResource Include="Resources/close.ico" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Update="favicon.png">
+        <Pack>True</Pack>
+        <PackagePath></PackagePath>
+      </None>
+    </ItemGroup>
+
+</Project>
