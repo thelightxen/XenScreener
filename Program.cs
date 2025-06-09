@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Win32;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -255,6 +256,13 @@ class Program : ApplicationContext
     [STAThread]
     static void Main()
     {
+        var currentProcess = Process.GetCurrentProcess();
+        var processes = Process.GetProcessesByName(currentProcess.ProcessName);
+        if (processes.Length > 1)
+        {
+            return;
+        }
+        
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
         Application.Run(new Program());
