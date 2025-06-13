@@ -7,8 +7,8 @@
         <UseWindowsForms>true</UseWindowsForms>
         <ImplicitUsings>enable</ImplicitUsings>
         <Company>XenFFly</Company>
-        <AssemblyVersion>1.0.1.1</AssemblyVersion>
-        <FileVersion>1.0.1.1</FileVersion>
+        <AssemblyVersion>1.0.2</AssemblyVersion>
+        <FileVersion>1.0.2</FileVersion>
         <Title>XenScreener</Title>
         <Authors>XenFFly</Authors>
         <Description>Makes a screenshot of the monitor depending on the cursor location</Description>
@@ -25,12 +25,13 @@
         <RepositoryUrl>https://git.xenffly.com/XenScreener</RepositoryUrl>
         <RepositoryType>Git</RepositoryType>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <Version>1.0.1.1</Version>
+        <Version>1.0.2</Version>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
       <DebugType>none</DebugType>
-      <PlatformTarget>x64</PlatformTarget>
+      <PlatformTarget>AnyCPU</PlatformTarget>
+      <Prefer32bit>false</Prefer32bit>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
@@ -47,6 +48,12 @@
         <Pack>True</Pack>
         <PackagePath></PackagePath>
       </None>
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Update="About.cs">
+        <SubType>Form</SubType>
+      </Compile>
     </ItemGroup>
 
 </Project>
