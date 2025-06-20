@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Drawing.Imaging;
 using Microsoft.Win32;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -103,6 +104,24 @@ namespace XenScreener
 
         [DllImport("kernel32.dll")]
         private static extern IntPtr GetModuleHandle(string lpModuleName);
+        
+        [DllImport("user32.dll")] static extern IntPtr GetDC(IntPtr hWnd);
+        [DllImport("user32.dll")] static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
+        [DllImport("gdi32.dll")] static extern IntPtr CreateCompatibleDC(IntPtr hdc);
+        [DllImport("gdi32.dll")] static extern IntPtr CreateCompatibleBitmap(IntPtr hdc, int cx, int cy);
+        [DllImport("gdi32.dll")] static extern IntPtr SelectObject(IntPtr hdc, IntPtr hgdiobj);
+        [DllImport("gdi32.dll")] static extern bool BitBlt(IntPtr hdcDest, int nXDest, int nYDest, int nWidth, int nHeight,
+            IntPtr hdcSrc, int nXSrc, int nYSrc, uint dwRop);
+        [DllImport("gdi32.dll")] static extern bool DeleteObject(IntPtr hObject);
+        [DllImport("gdi32.dll")] static extern bool DeleteDC(IntPtr hdc);
+        [DllImport("user32.dll")] static extern bool OpenClipboard(IntPtr hWndNewOwner);
+        [DllImport("user32.dll")] static extern bool EmptyClipboard();
+        [DllImport("user32.dll")] static extern IntPtr SetClipboardData(uint uFormat, IntPtr data);
+        [DllImport("user32.dll")] static extern bool CloseClipboard();
+
+        private const uint SRCCOPY = 0x00CC0020;
+        private const uint CF_BITMAP = 2;
+
 
         private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
         private static LowLevelKeyboardProc _proc = null!;
@@ -154,6 +173,8 @@ namespace XenScreener
         {
             instance = this;
             
+
+            
             string localPath = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule?.FileName) ?? "";
 
             Config = new XmlConfig(Path.Combine(localPath, "Config.xml"));
@@ -164,9 +185,12 @@ namespace XenScreener
             using Stream? closeIcon = Assembly.GetExecutingAssembly().GetManifestResourceStream("XenScreener.Resources.close.ico");
             if (xenIcon != null && closeIcon != null)
             {
+                var iconXen = new Icon(xenIcon);
+                var iconClose = new Icon(closeIcon);
+
                 trayIcon = new NotifyIcon()
                 {
-                    Icon = new Icon(xenIcon),
+                    Icon = iconXen,
                     Visible = true,
                     Text = appName,
                 };
@@ -207,7 +231,11 @@ namespace XenScreener
                 trayIcon.ContextMenuStrip.Items.Add(new ToolStripSeparator());
 
                 // Exit
-                trayIcon.ContextMenuStrip.Items.Add("Exit", new Icon(closeIcon).ToBitmap(), (_, __) => ExitThread());
+                trayIcon.ContextMenuStrip.Items.Add("Exit", iconClose.ToBitmap(), (_, __) => ExitThread());
+
+                // prevent memory leak
+                iconXen.Dispose();
+                iconClose.Dispose();
             }
             
             SetHook();
@@ -215,8 +243,13 @@ namespace XenScreener
 
         private void About()
         {
-            using var about = new About();
-            about.ShowDialog();
+            using (var about = new About())
+            {
+                about.ShowDialog();
+            }
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
         }
 
         private void OnMonitorsOpen(object? sender, System.ComponentModel.CancelEventArgs e)
@@ -259,7 +292,7 @@ namespace XenScreener
             Config.Save();
         }
 
-        private bool bWasPNG = false;
+        private bool bWasPNG = false; 
         private void XenScreenshot()
         {
             try
@@ -277,26 +310,83 @@ namespace XenScreener
                     mi.rcMonitor.Right - mi.rcMonitor.Left,
                     mi.rcMonitor.Bottom - mi.rcMonitor.Top
                 );
-
-                using Bitmap bmp = new Bitmap(bounds.Width, bounds.Height);
-                using Graphics gpu = Graphics.FromImage(bmp);
-                gpu.CopyFromScreen(bounds.Location, Point.Empty, bounds.Size);
                 
-                Clipboard.SetImage(bmp);
+                IntPtr hdcScreen = IntPtr.Zero;
+                IntPtr hdcMem = IntPtr.Zero;
+                IntPtr hBitmap = IntPtr.Zero;
+                IntPtr hOld = IntPtr.Zero;
+                
+                Exception threadEx = null!;
 
+                Thread thread = new Thread(() =>
+                {
+                    try
+                    {
+                        hdcScreen = GetDC(IntPtr.Zero);
+                        hdcMem = CreateCompatibleDC(hdcScreen);
+                        hBitmap = CreateCompatibleBitmap(hdcScreen, bounds.Width, bounds.Height);
+                        hOld = SelectObject(hdcMem, hBitmap);
+
+                        if (!BitBlt(hdcMem, 0, 0, bounds.Width, bounds.Height, hdcScreen, bounds.Left, bounds.Top, SRCCOPY))
+                            throw new System.ComponentModel.Win32Exception();
+
+                        OpenClipboard(IntPtr.Zero);
+
+                        try
+                        {
+                            EmptyClipboard();
+                            SetClipboardData(CF_BITMAP, hBitmap);
+                            
+                            hBitmap = IntPtr.Zero;
+                        }
+                        finally
+                        {
+                            CloseClipboard();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        threadEx = ex;
+                    }
+                    finally
+                    {
+                        if (hOld != IntPtr.Zero)
+                            SelectObject(hdcMem, hOld);
+
+                        if (hBitmap != IntPtr.Zero)
+                            DeleteObject(hBitmap);
+
+                        if (hdcMem != IntPtr.Zero)
+                            DeleteDC(hdcMem);
+
+                        if (hdcScreen != IntPtr.Zero)
+                            ReleaseDC(IntPtr.Zero, hdcScreen);
+                    }
+                });
+
+                thread.SetApartmentState(ApartmentState.STA);
+                thread.Start();
+                thread.Join();
+
+                if (threadEx != null)
+                    throw threadEx;
+                
                 if (bWasPNG)
                 {
+                    using Bitmap bmp = new Bitmap(bounds.Width, bounds.Height);
+                    using (Graphics gpu = Graphics.FromImage(bmp))
+                        gpu.CopyFromScreen(bounds.Location, Point.Empty, bounds.Size);
+                    
                     string userPictures = Path.Combine(
                         Environment.GetFolderPath(Environment.SpecialFolder.MyPictures),
                         "Screenshots"
                     );
-
                     Directory.CreateDirectory(userPictures);
 
                     string fileName = $"Screenshot_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}_XFF.png";
                     string fullPath = Path.Combine(userPictures, fileName);
 
-                    bmp.Save(fullPath, System.Drawing.Imaging.ImageFormat.Png);
+                    bmp.Save(fullPath, ImageFormat.Png);
                     ShowFlashEffect(bounds);
                 }
 
@@ -306,7 +396,7 @@ namespace XenScreener
                     Task.Delay(200).ContinueWith(_ =>
                     {
                         try { ShowNotify("Screenshot", wasPngCopy ? "Screenshot was copied and saved" : "Screenshot was copied to clipboard"); }
-                        catch { }
+                        catch { /* Ignored */ }
                     });
                 }
 
@@ -357,7 +447,6 @@ namespace XenScreener
             }
             return CallNextHookEx(hookId, nCode, wParam, lParam);
         }
-
         
         private static IntPtr StaticHookCallback(int nCode, IntPtr wParam, IntPtr lParam)
         {
