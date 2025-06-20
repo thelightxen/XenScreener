@@ -232,10 +232,6 @@ namespace XenScreener
 
                 // Exit
                 trayIcon.ContextMenuStrip.Items.Add("Exit", iconClose.ToBitmap(), (_, __) => ExitThread());
-
-                // prevent memory leak
-                iconXen.Dispose();
-                iconClose.Dispose();
             }
             
             SetHook();
