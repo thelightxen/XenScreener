@@ -119,9 +119,6 @@ namespace XenScreener
         [DllImport("user32.dll")] static extern IntPtr SetClipboardData(uint uFormat, IntPtr data);
         [DllImport("user32.dll")] static extern bool CloseClipboard();
         
-        [DllImport("Shcore.dll")]
-        static extern int GetDpiForMonitor(IntPtr hmonitor, int dpiType, out uint dpiX, out uint dpiY);
-        
         [DllImport("user32.dll")]
         private static extern bool SetProcessDpiAwarenessContext(int dpiFlag);
 
@@ -307,10 +304,9 @@ namespace XenScreener
                 mi.cbSize = Marshal.SizeOf(mi);
                 GetMonitorInfo(monitor, ref mi);
                 
-                uint dpiX, dpiY;
-                int ret = GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, out dpiX, out dpiY);
-                if (ret != 0)
-                    dpiX = 96; dpiY = 96;
+                using Graphics g = Graphics.FromHwnd(IntPtr.Zero);
+                float dpiX = g.DpiX;
+                float dpiY = g.DpiY;
                 
                 float scaleX = dpiX / 96f;
                 float scaleY = dpiY / 96f;
