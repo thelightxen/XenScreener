@@ -118,10 +118,19 @@ namespace XenScreener
         [DllImport("user32.dll")] static extern bool EmptyClipboard();
         [DllImport("user32.dll")] static extern IntPtr SetClipboardData(uint uFormat, IntPtr data);
         [DllImport("user32.dll")] static extern bool CloseClipboard();
+        
+        [DllImport("Shcore.dll")]
+        static extern int GetDpiForMonitor(IntPtr hmonitor, int dpiType, out uint dpiX, out uint dpiY);
+        
+        [DllImport("user32.dll")]
+        private static extern bool SetProcessDpiAwarenessContext(int dpiFlag);
+
+        private const int DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = -4;
+
+        const int MDT_EFFECTIVE_DPI = 0;
 
         private const uint SRCCOPY = 0x00CC0020;
         private const uint CF_BITMAP = 2;
-
 
         private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
         private static LowLevelKeyboardProc _proc = null!;
@@ -172,8 +181,6 @@ namespace XenScreener
         public Program()
         {
             instance = this;
-            
-
             
             string localPath = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule?.FileName) ?? "";
 
@@ -299,13 +306,21 @@ namespace XenScreener
                 MONITORINFO mi = new MONITORINFO();
                 mi.cbSize = Marshal.SizeOf(mi);
                 GetMonitorInfo(monitor, ref mi);
+                
+                uint dpiX, dpiY;
+                int ret = GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, out dpiX, out dpiY);
+                if (ret != 0)
+                    dpiX = 96; dpiY = 96;
+                
+                float scaleX = dpiX / 96f;
+                float scaleY = dpiY / 96f;
 
-                Rectangle bounds = new Rectangle(
-                    mi.rcMonitor.Left,
-                    mi.rcMonitor.Top,
-                    mi.rcMonitor.Right - mi.rcMonitor.Left,
-                    mi.rcMonitor.Bottom - mi.rcMonitor.Top
-                );
+                int width = mi.rcMonitor.Right - mi.rcMonitor.Left;
+                int height = mi.rcMonitor.Bottom - mi.rcMonitor.Top;
+                int left = (int)(mi.rcMonitor.Left * scaleX);
+                int top = (int)(mi.rcMonitor.Top * scaleY);
+
+                Rectangle bounds = new Rectangle(left, top, width, height);
                 
                 IntPtr hdcScreen = IntPtr.Zero;
                 IntPtr hdcMem = IntPtr.Zero;
@@ -416,6 +431,14 @@ namespace XenScreener
                 {
                     pressedKeys.Add(key);
 
+                    // Alt + PrtScr skip
+                    if (pressedKeys.Contains(Keys.Menu) || 
+                        pressedKeys.Contains(Keys.LMenu) || 
+                        pressedKeys.Contains(Keys.RMenu))
+                    {
+                        return CallNextHookEx(hookId, nCode, wParam, lParam);
+                    }
+                    
                     if (key == Keys.PrintScreen)
                     {
                         if (!_handledPress)
@@ -493,6 +516,7 @@ namespace XenScreener
                 return;
             }
 
+            SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new Program());
